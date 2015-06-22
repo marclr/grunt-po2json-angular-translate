@@ -38,17 +38,15 @@ module.exports = function(grunt) {
         if(string == "") {
             return
         }
-        
+
         if (closingMark !== undefined &&
             altEnabled &&
            string.indexOf(closingMark !== -1)){
             if (string.indexOf(openingMark) !== -1){
-                var regexp = new RegExp(openingMark, 'g');
-                string = string.replace(regexp, "{{");
+                string = string.replace(closingMark,"}}");
             }
             if (string.indexOf(closingMark) !== -1){
-                var regexp = new RegExp(closingMark, 'g');
-                string = string.replace(regexp, "}}");
+                string = string.replace(closingMark,"}}");
             }
         }
 
