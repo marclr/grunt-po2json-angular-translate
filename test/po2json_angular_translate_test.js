@@ -44,15 +44,15 @@ exports.po2json_angular_translate = {
         test.expect(3);
 
         var generated = grunt.file.read('tmp/mantainFolder/i18n/ca/main.json');
-        var expected = grunt.file.read('test/expected/i18n/ca/main.json');
+        var expected = grunt.file.read('test/expected/i18n/ca/main.json').replace(/\r\n/g, '\n');
         test.strictEqual(generated, expected, 'Should be the same JSON objext, just msgid and msgstr.');
 
         generated = grunt.file.read('tmp/mantainFolder/i18n/en/main.json');
-        expected = grunt.file.read('test/expected/i18n/en/main.json');
+        expected = grunt.file.read('test/expected/i18n/en/main.json').replace(/\r\n/g, '\n');
         test.strictEqual(generated, expected, 'Should be the same JSON objext, just msgid and msgstr.');
 
         generated = grunt.file.read('tmp/mantainFolder/i18n/es/main.json');
-        expected = grunt.file.read('test/expected/i18n/es/main.json');
+        expected = grunt.file.read('test/expected/i18n/es/main.json').replace(/\r\n/g, '\n');
         test.strictEqual(generated, expected, 'Should be the same JSON objext, just msgid and msgstr.');
 
         test.done();
