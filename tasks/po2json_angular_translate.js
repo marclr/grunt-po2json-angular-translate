@@ -34,7 +34,14 @@ var  rmDir = function(dirPath) {
 module.exports = function(grunt) {
 
     var replacePlaceholder = function(string, openingMark, closingMark,altEnabled){
-        if (closingMark !== undefined && altEnabled && string.indexOf(closingMark !== -1)) {
+        //if string is empty skip it
+        if(string == "") {
+            return
+        }
+        
+        if (closingMark !== undefined &&
+            altEnabled &&
+           string.indexOf(closingMark !== -1)){
             if (string.indexOf(openingMark) !== -1){
                 var regexp = new RegExp(openingMark, 'g');
                 string = string.replace(regexp, "{{");
