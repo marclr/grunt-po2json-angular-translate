@@ -8,7 +8,7 @@
 
 'use strict';
 
-var po = require('node-po');
+var po = require('pofile');
 var path = require('path');
 var fs = require('fs');
 
@@ -34,11 +34,16 @@ var  rmDir = function(dirPath) {
 module.exports = function(grunt) {
 
     var replacePlaceholder = function(string, openingMark, closingMark,altEnabled){
+        //if string is empty skip it
+        if(string == "") {
+            return
+        }
+
         if (closingMark !== undefined &&
             altEnabled &&
            string.indexOf(closingMark !== -1)){
             if (string.indexOf(openingMark) !== -1){
-                string = string.replace(openingMark,"{{");
+                string = string.replace(closingMark,"}}");
             }
             if (string.indexOf(closingMark) !== -1){
                 string = string.replace(closingMark,"}}");
@@ -65,9 +70,9 @@ module.exports = function(grunt) {
             stringify : true,
             offset : 1,
             enableAltPlaceholders: true,
-            placeholderStructure: ["{","}"]
+            placeholderStructure: ["{","}"],
+            maintainFolderStructure: false
         });
-
 
         this.files.forEach(function(f) {
             var filepaths = f.src.filter(function(filepath) {
@@ -100,11 +105,49 @@ module.exports = function(grunt) {
                 singleFile = true;
             }
 
+            if(options.maintainFolderStructure) {
+                //Source is in Array
+                var startSrcPath = [];
+                f.orig.src.forEach(function(entry) {
+                    var segments = entry.split('**');
+                    if(segments.length > 2) {
+                        grunt.log.writeln('Src path has multiple choices');
+                        return false;
+                    }
+                    startSrcPath.push(segments);
+                });
+
+                var startDestPath = f.orig.dest.split('**');
+                if(startDestPath.length > 2) {
+                    grunt.log.writeln('Dest path has multiple choices');
+                    return false;
+                }
+            }
+
             filepaths.forEach(function(filepath){
                 if (! singleFile ){
                     // Prepare the file name
                     var filename = path.basename(filepath, path.extname(filepath));
-                    dest = path.join (f.dest, filename + ".json" );
+
+                    if(options.maintainFolderStructure) {
+                        var find = false;
+                        for(var pos = 0; pos < startSrcPath.length && !find; pos++) {
+                            var index = startSrcPath[pos][0];
+                            if(filepath.indexOf(index) === 0) {
+                                //Build path based on source
+                                var middlePath = path.dirname(filepath.replace(index,''));
+                                dest = path.join(startDestPath[0], middlePath, filename + ".json");
+                                find = true;
+                            }
+                            else if (path.dirname(filepath) === path.dirname(index)) {
+                                //The source and the destination doesn't have '**' build typical structure
+                                dest = path.join (f.dest, filename + ".json" );
+                            }
+                        }
+                    }
+                    else {
+                        dest = path.join (f.dest, filename + ".json" );
+                    }
                 }
                 // Read the file po content
                 var file = grunt.file.read(filepath);
