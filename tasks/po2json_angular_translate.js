@@ -43,7 +43,7 @@ module.exports = function(grunt) {
             altEnabled &&
            string.indexOf(closingMark !== -1)){
             if (string.indexOf(openingMark) !== -1){
-                string = string.replace(closingMark,"}}");
+                string = string.replace(openingMark,"{{");
             }
             if (string.indexOf(closingMark) !== -1){
                 string = string.replace(closingMark,"}}");
