@@ -33,7 +33,7 @@ var  rmDir = function(dirPath) {
 
 module.exports = function(grunt) {
 
-    var replacePlaceholder = function(string, openingMark, closingMark,altEnabled){
+    var replacePlaceholder = function(string, openingMark, closingMark,altEnabled, isPluralString){
         //if string is empty skip it
         if(string == "") {
             return
@@ -43,10 +43,19 @@ module.exports = function(grunt) {
             altEnabled &&
            string.indexOf(closingMark !== -1)){
             if (string.indexOf(openingMark) !== -1){
-                string = string.replace(openingMark,"{{");
+                if (isPluralString) {
+                    string = string.replace(openingMark,"{{");
+                } else {
+                    string = string.replace(new RegExp(openingMark, 'g'),"{{");
+                }
+                
             }
             if (string.indexOf(closingMark) !== -1){
-                string = string.replace(closingMark,"}}");
+                if (isPluralString) {
+                    string = string.replace(closingMark,"}}");
+                } else {
+                    string = string.replace(new RegExp(closingMark, 'g'),"}}");
+                }
             }
         }
 
@@ -202,7 +211,7 @@ module.exports = function(grunt) {
                             }
                         }
 
-                        pluralizedStr = replacePlaceholder(pluralizedStr,options.placeholderStructure[0],options.placeholderStructure[1],options.enableAltPlaceholders);
+                        pluralizedStr = replacePlaceholder(pluralizedStr,options.placeholderStructure[0],options.placeholderStructure[1],options.enableAltPlaceholders, true);
                         strings[item.msgid] = pluralizedStr ;
                         if (singleFile){
                             singleFileStrings[item.msgid]=  pluralizedStr;
