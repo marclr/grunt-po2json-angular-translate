@@ -19,7 +19,7 @@
     ],
     "disallowMixedSpacesAndTabs": true,
     "disallowTrailingWhitespace": true,
-    
+
     "requireSpaceAfterComma": true,
     "disallowYodaConditions": true,
     "disallowKeywords": [ "with" ],
@@ -37,6 +37,7 @@
     },
     "requireSpacesInConditionalExpression": true,
     "requireBlocksOnNewline": 1,
+    "requireTrailingComma" : false,
     "requireCommaBeforeLineBreak": true,
     "requireSpaceBeforeBinaryOperators": true,
     "requireSpaceAfterBinaryOperators": true,

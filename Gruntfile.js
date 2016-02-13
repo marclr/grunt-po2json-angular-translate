@@ -2,7 +2,7 @@
  * grunt-po2json-angular-translate
  * https://github.com/root/grunt-po2json-angular-translate
  *
- * Copyright (c) 2013 danielavalero
+ * Copyright (c) 2013 danielavalero, marclr
  * Licensed under the MIT license.
  */
 
@@ -14,15 +14,15 @@ module.exports = function (grunt) {
       all: [
           'Gruntfile.js',
           'tasks/*.js',
-          '<%= nodeunit.tests %>',
+          '<%= nodeunit.tests %>'
       ],
       options: {
-        jshintrc: '.jshintrc',
+        jshintrc: '.jshintrc'
       }
     },
 
     clean: {
-      tests: ['tmp'],
+      tests: ['tmp']
     },
 
     po2json_angular_translate: {
@@ -31,18 +31,18 @@ module.exports = function (grunt) {
           pretty: true,
           upperCaseId: false,
           cleanPrevStrings: true,
-          maintainFolderStructure: true,
+          maintainFolderStructure: true
         },
         files: {
           'tmp/': ['test/fixtures/*.po'],
           'tmp/several.json': ['test/fixtures/*.po'],
-          'tmp/mantainFolder': ['test/fixtures/**/*.po'],
+          'tmp/mantainFolder': ['test/fixtures/**/*.po']
         }
       }
     },
 
     nodeunit: {
-      tests: ['test/*_test.js'],
+      tests: ['test/*_test.js']
     }
 
   });

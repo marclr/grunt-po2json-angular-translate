@@ -2,7 +2,7 @@
  * grunt-po2json-angular-translate
  * https://github.com/root/grunt-po2json-angular-translate
  *
- * Copyright (c) 2013 danielavalero
+ * Copyright (c) 2013 danielavalero, marclr
  * Licensed under the MIT license.
  */
 
@@ -37,6 +37,42 @@ var  rmDir = function (dirPath) {
 };
 
 module.exports = function (grunt) {
+
+  var getValidFilepaths = function (filepaths) {
+      /**
+       * Function to warn and remove all invalid source files
+       *
+       * @param  {Array} filepaths list with all filepaths that will be checked if exists
+       * @return {Array}          List with all valid files
+       */
+      var validFilepaths = filepaths.filter(function (filepath) {
+        if (!grunt.file.exists(filepath)) {
+          grunt.log.warn('Po file "' + filepath + '" not found.');
+          return false;
+        } else {
+          return true;
+        }
+      });
+
+      return validFilepaths;
+    };
+
+  var getFolderStructure = function (source) {
+      var folderStructure = [];
+
+      source.forEach(function (entry) {
+        var segments = entry.split('**');
+
+        if (segments.length > 2) {
+          grunt.log.error('The path (' + entry + ') has multiple choices');
+          return false;
+        }
+
+        folderStructure.push(segments);
+      });
+
+      return folderStructure;
+    };
 
   var replacePlaceholder = function (string, openingMark, closingMark, altEnabled, isPluralString) {
     //if string is empty skip it
@@ -74,6 +110,79 @@ module.exports = function (grunt) {
     return string;
   };
 
+  var readPoFile = function (filepath, options, singleFile, singleFileStrings) {
+  // Read the file po content
+  var file = grunt.file.read(filepath);
+  var catalog = po.parse(file);
+  var strings = {};
+
+  for (var i = 0; i < catalog.items.length; i++) {
+    var item = catalog.items[i];
+    if (options.upperCaseId) {
+      item.msgid = item.msgid.toUpperCase();
+    }
+
+    if (item.msgidPlural !== null && item.msgstr.length > 1) {
+      var singularWords = item.msgstr[0].split(' ');
+      var pluralWords = item.msgstr[1].split(' ');
+      var pluralizedStr = '';
+      var numberPlaceHolder = false;
+
+      if (singularWords.length !== pluralWords.length) {
+        grunt.log.writeln('Either the singular or plural string had more words in the msgid: ' + item.msgid + ', the extra words were omitted');
+      }
+
+      for (var x = 0; x < singularWords.length; x++) {
+
+        if (singularWords[x] === undefined || pluralWords[x] === undefined) {
+          continue;
+        }
+
+        if (pluralWords[x].indexOf('%d') !== -1) {
+          numberPlaceHolder = true;
+          continue;
+        }
+
+        if (singularWords[x] !== pluralWords[x]) {
+          var p = '';
+          if (numberPlaceHolder) {
+            p = '# ';
+            numberPlaceHolder = false;
+          }
+
+          var strPl = 'PLURALIZE, plural, offset:' + options.offset;
+
+          pluralizedStr += '{' + strPl + ' =2{' + p + singularWords[x] + '}' +
+              ' other{' + p + pluralWords[x] + '}}';
+
+        }else {
+          pluralizedStr += singularWords[x];
+        }
+
+        if (x !== singularWords.length - 1) {
+          pluralizedStr += ' ';
+        }
+      }
+
+      pluralizedStr = replacePlaceholder(pluralizedStr, options.placeholderStructure[0], options.placeholderStructure[1], options.enableAltPlaceholders, true);
+      strings[item.msgid] = pluralizedStr;
+      if (singleFile) {
+        singleFileStrings[item.msgid] =  pluralizedStr;
+      }
+
+    } else {
+      var message = item.msgstr.length === 1 ? item.msgstr[0] : item.msgstr;
+      message = replacePlaceholder(message, options.placeholderStructure[0], options.placeholderStructure[1], options.enableAltPlaceholders);
+      strings[item.msgid] = message;
+      if (singleFile) {
+        singleFileStrings[item.msgid] = message;
+      }
+    }
+  }
+
+  return strings;
+};
+
   grunt.registerMultiTask('po2json_angular_translate', 'grunt plugin to convert po to angangular-translate format', function () {
     var options = this.options({
       pretty: false,
@@ -87,56 +196,48 @@ module.exports = function (grunt) {
       maintainFolderStructure: false
     });
 
-    this.files.forEach(function (f) {
-      var filepaths = f.src.filter(function (filepath) {
-        // Warn on and remove invalid source files (if nonull was set).
-        if (!grunt.file.exists(filepath)) {
-          grunt.log.warn('Po file "' + filepath + '" not found.');
-          return false;
-        } else {
-          return true;
+    var files = this.files;
+    files.forEach(function (file) {
+      // file.src contains the expanded folder
+      // file.orig contains the literal
 
-        }
-      });
+      var f = file;
+      var filelist = file.src;
+      var destination = file.dest;
+      var filepaths = getValidFilepaths(filelist);
 
       if (filepaths.length === 0) {
-        grunt.log.warn('Destination (' + f.dest + ') not written because src files were empty.');
+        grunt.log.warn('Destination (' + destination + ') not written because src files were empty.');
         return;
       }
 
       if (options.cleanPrevStrings) {
-        rmDir(f.dest);
+        rmDir(destination);
       }
 
-      var destPath = path.extname(f.dest);
-      var dest;
+      //If destination is a file, we should put everything there
       var singleFile = false;
       var singleFileStrings = {};
-
-      if (destPath !== '') { //It is just one file, we should put everything there
+      var destPath = path.extname(destination);
+      if (destPath !== '') {
         singleFile = true;
       }
 
+      var startSourcePath = [];
       if (options.maintainFolderStructure) {
-        //Source is in Array
-        var startSrcPath = [];
-        f.orig.src.forEach(function (entry) {
-          var segments = entry.split('**');
-          if (segments.length > 2) {
-            grunt.log.writeln('Src path has multiple choices');
-            return false;
-          }
+        var source = file.orig.src;
+        startSourcePath = getFolderStructure(source);
 
-          startSrcPath.push(segments);
-        });
-
-        var startDestPath = f.orig.dest.split('**');
+        var dest = file.orig.dest;
+        var startDestPath = dest.split('**');
         if (startDestPath.length > 2) {
-          grunt.log.writeln('Dest path has multiple choices');
+          grunt.log.writeln('Dest (' + dest + ') path has multiple choices');
           return false;
         }
       }
 
+      // Let's do the job!
+      var fileOutput = destination;
       filepaths.forEach(function (filepath) {
         if (!singleFile) {
           // Prepare the file name
@@ -144,102 +245,37 @@ module.exports = function (grunt) {
 
           if (options.maintainFolderStructure) {
             var find = false;
-            for (var pos = 0; pos < startSrcPath.length && !find; pos++) {
-              var index = startSrcPath[pos][0];
+            for (var pos = 0; pos < startSourcePath.length && !find; pos++) {
+              var index = startSourcePath[pos][0];
               if (filepath.indexOf(index) === 0) {
                 //Build path based on source
                 var middlePath = path.dirname(filepath.replace(index, ''));
-                dest = path.join(startDestPath[0], middlePath, filename + '.json');
+                fileOutput = path.join(startDestPath[0], middlePath, filename + '.json');
                 find = true;
-              }              else if (path.dirname(filepath) === path.dirname(index)) {
+              } else if (path.dirname(filepath) === path.dirname(index)) {
                 //The source and the destination doesn't have '**' build typical structure
-                dest = path.join(f.dest, filename + '.json');
+                fileOutput = path.join(destination, filename + '.json');
+                find = true;
               }
             }
           } else {
-            dest = path.join(f.dest, filename + '.json');
+            fileOutput = path.join(destination, filename + '.json');
           }
         }
 
-        // Read the file po content
-        var file = grunt.file.read(filepath);
-        var catalog = po.parse(file);
-        var strings = {};
-
-        for (var i = 0; i < catalog.items.length; i++) {
-          var item = catalog.items[i];
-          if (options.upperCaseId) {
-            item.msgid = item.msgid.toUpperCase();
-          }
-
-          if (item.msgidPlural !== null && item.msgstr.length > 1) {
-            var singularWords = item.msgstr[0].split(' ');
-            var pluralWords = item.msgstr[1].split(' ');
-            var pluralizedStr = '';
-            var numberPlaceHolder = false;
-
-            if (singularWords.length !== pluralWords.length) {
-              grunt.log.writeln('Either the singular or plural string had more words in the msgid: ' + item.msgid + ', the extra words were omitted');
-            }
-
-            for (var x = 0; x < singularWords.length; x++) {
-
-              if (singularWords[x] === undefined || pluralWords[x] === undefined) {
-                continue;
-              }
-
-              if (pluralWords[x].indexOf('%d') !== -1) {
-                numberPlaceHolder = true;
-                continue;
-              }
-
-              if (singularWords[x] !== pluralWords[x]) {
-                var p = '';
-                if (numberPlaceHolder) {
-                  p = '# ';
-                  numberPlaceHolder = false;
-                }
-
-                var strPl = 'PLURALIZE, plural, offset:' + options.offset;
-
-                pluralizedStr += '{' + strPl + ' =2{' + p + singularWords[x] + '}' +
-                    ' other{' + p + pluralWords[x] + '}}';
-
-              }else {
-                pluralizedStr += singularWords[x];
-              }
-
-              if (x !== singularWords.length - 1) {
-                pluralizedStr += ' ';
-              }
-            }
-
-            pluralizedStr = replacePlaceholder(pluralizedStr, options.placeholderStructure[0], options.placeholderStructure[1], options.enableAltPlaceholders, true);
-            strings[item.msgid] = pluralizedStr;
-            if (singleFile) {
-              singleFileStrings[item.msgid] =  pluralizedStr;
-            }
-
-          } else {
-            var message = item.msgstr.length === 1 ? item.msgstr[0] : item.msgstr;
-            message = replacePlaceholder(message, options.placeholderStructure[0], options.placeholderStructure[1], options.enableAltPlaceholders);
-            strings[item.msgid] = message;
-            if (singleFile) {
-              singleFileStrings[item.msgid] = message;
-            }
-          }
-        }
+        //The singleFileStrings will be passed by reference
+        var strings = readPoFile(filepath, options, singleFile, singleFileStrings);
 
         if (!singleFile) {
-          grunt.file.write(dest, (options.stringify) ? JSON.stringify(strings, null, (options.pretty) ? '   ' : '') : strings);
-          grunt.log.writeln('JSON file(s) created: "' + dest + '"');
+          grunt.file.write(fileOutput, (options.stringify) ? JSON.stringify(strings, null, (options.pretty) ? '   ' : '') : strings);
+          grunt.log.writeln('JSON file(s) created: "' + fileOutput + '"');
         }
 
       });
 
       if (singleFile) {
-        grunt.file.write(f.dest, (options.stringify) ? JSON.stringify(singleFileStrings, null, (options.pretty) ? '   ' : '') : singleFileStrings);
-        grunt.log.writeln('JSON file(s) created: "' + f.dest + '"');
+        grunt.file.write(destination, (options.stringify) ? JSON.stringify(singleFileStrings, null, (options.pretty) ? '   ' : '') : singleFileStrings);
+        grunt.log.writeln('JSON file(s) created: "' + destination + '"');
       }
     });
   });
