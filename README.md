@@ -1,6 +1,6 @@
 # grunt-po2json-angular-translate
-
-> grunt plugin to convert po to angangular-translate format
+> Fork from grunt-po2json-angular-translate
+> grunt plugin to convert po to angular-translate format
 
 ## Getting Started
 This plugin requires Grunt `~0.4.2`
